@@ -1,0 +1,140 @@
+---
+title: "Homework_4"
+format: html
+editor: visual
+---
+
+
+```{r}
+#| include: false
+
+    library(tidyverse)
+```
+
+## Task 1: Conceptual Questions
+
+1.  If your working directory is myfolder/homework/, what relative path would you specify to get the file located at myfolder/MyData.csv?
+
+> ".../MyData.csv"
+
+2.  What are the major benefits of using R projects?
+
+> R projects help to keep files associated with one task organized. An R project creates a project directory to keep files together and uses that file as the working directory. This makes it easier for other to reproduce results using the same code. It also just provides a smaller working environment for a single project, so it doesn't get confounded by other code (like same-named objects).
+
+3.  What is git and what is github?
+
+> Git is a version control system, meaning it stores files that many people can have access to and can update. GitHub is where those gits are stored and accessed.
+
+4.  What are the two main differences between a tibble and a data.frame?
+
+> Printing a tibble provides more useful/neater information and almost all tidyverse functions are built to work on a tibble.
+
+5.  Rewrite the following nested function call using BaseR’s chaining operator:
+
+```{r}
+    arrange(filter(select(as_tibble(iris), starts_with("Petal"), Species),
+                          Petal.Length < 1.55), Species)
+
+```
+
+> Rearranged below:
+
+```{r}
+    as_tibble(iris) |>
+      select(starts_with("Petal"), Species) |>
+      filter(Petal.Length < 1.55) |>
+      arrange(Species)
+```
+
+## Task 2: Reading Delimited Data
+
+Read in glass data set and add column names.
+
+```{r}
+    library(tidyverse)
+    glass_data<-read_csv("https://www4.stat.ncsu.edu/~online/datasets/glass.data",
+                         col_names=c("Id","RI","Na","Mg","Al","Si","K","Ca","Ba",
+                                      "Fe","Type"))
+    glass_data
+```
+
+Overwrite the numeric value of the Type variable to a meaningful name, then keep only observations where Fe \< 0.2 and Type is "tableware" or "headlamp".
+
+```{r}
+    glass_data|>
+      mutate(Type=
+           ifelse(Type == 1, "building_windows_float_processed",
+                  ifelse(Type == 2, "building_windows_non_float_processed",
+                         ifelse(Type == 3,"vehicle_windows_float_processed",
+                                ifelse(Type ==4,"vehicle_windows_non_float_processed",
+                                       ifelse(Type == 5, "containers",
+                                              ifelse(Type == 6,"tableware","headlamps"
+                                                     ))))))) |>
+      filter(Fe < 0.2 & (Type == "headlamps" | Type == "tableware") )
+```
+
+Read in yeast data and add column names.
+
+```{r}
+    yeast_data<-read_table("https://www4.stat.ncsu.edu/~online/datasets/yeast.data",
+                           col_names=c("seq_name","mcg","gvh","alm","mit","erl","pox",
+                                  "vac","nuc","class"))
+```
+
+Remove the seq and nuc colums, then add columns for the mean and median of the remaining numeric variables at each class grouping.
+
+```{r}
+    yeast_data |>
+      select(mcg:vac, class) |>
+      group_by(class) |>
+      mutate(across(where(is.numeric), list(mean=mean, median=median),
+                    .names =  "{.col}_{.fn}"))
+```
+
+## Task 3: Combining Excel and Delimited Data
+
+Read in the first page of the white wine data set.
+
+```{r}
+    library(readxl)
+    ww1_data<-read_excel("white-wine.xlsx",sheet=excel_sheets("white-wine.xlsx")[1])
+    ww1_data
+```
+
+Read in the second page of the white wine data set, then overwrite the column names from the first page with the data in the second page.
+
+```{r}
+    ww2_data<-read_excel("white-wine.xlsx",sheet=excel_sheets("white-wine.xlsx")[2])
+    colnames(ww1_data)<-pull(ww2_data,1)
+```
+
+Create a new variable to indicate that these observations came from the white wine data set.
+
+```{r}
+    ww1_data$type<- "white"
+```
+
+Repeat the steps above for red wine data set.
+
+```{r}
+    rw_data<-read_delim("red-wine.csv",delim = ";")
+    colnames(rw_data)<-pull(ww2_data,1)
+    rw_data$type<- "red"
+```
+
+Combine the two tibbles.
+
+```{r}
+    fullw_data<-bind_rows(ww1_data, rw_data)
+```
+
+Keep only observations where quality is \> 6.5 and alcohol is \< 132, then reorder the rows to descend by quality, then selct only variables that contain "acid", alcohol, type, and quality. Finally, add the mean and standard deviation of alcohol by quality.
+
+```{r}
+    fullw_data |>
+    filter(quality > 6.5 & alcohol < 132)|>
+    arrange(desc(quality))|>
+    select(contains("acid"),alcohol,type,quality)|>
+    group_by(quality) |>
+    mutate(alcohol_mean=mean(alcohol), alcohol_sd=sd(alcohol))
+```
